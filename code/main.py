@@ -29,6 +29,8 @@ def parse_args():
     parser.add_argument('--gpu', dest='gpu_id', type=int, default=-1)
     parser.add_argument('--data_dir', dest='data_dir', type=str, default='')
     parser.add_argument('--manualSeed', type=int, help='manual seed')
+    parser.add_argument('--output_file_name', type=str)
+    parser.add_argument('--highlight', type=int)
     args = parser.parse_args()
     return args
 
@@ -36,7 +38,7 @@ def parse_args():
 def gen_example(wordtoix, algo):
     '''generate images from example sentences'''
     from nltk.tokenize import RegexpTokenizer
-    filepath = '%s/example_filenames.txt' % (cfg.DATA_DIR)
+    filepath = '%s/example_2.txt' % (cfg.DATA_DIR)
     data_dic = {}
     with open(filepath, "r") as f:
         filenames = f.read().split('\n')
@@ -47,6 +49,7 @@ def gen_example(wordtoix, algo):
             with open(filepath, "r") as f:
                 print('Load from:', name)
                 sentences = f.read().split('\n')
+                print("sentences", sentences)
                 # a list of indices for a sentence
                 captions = []
                 cap_lens = []
@@ -95,6 +98,8 @@ if __name__ == "__main__":
 
     if args.data_dir != '':
         cfg.DATA_DIR = args.data_dir
+    cfg.OUTPUT_FILE_NAME = args.output_file_name
+    cfg.HIGHLIGHT = args.highlight
     print('Using config:')
     pprint.pprint(cfg)
 

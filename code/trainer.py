@@ -243,6 +243,8 @@ class condGANTrainer(object):
 
             data_iter = iter(self.data_loader)
             step = 0
+
+            start_t2 = time.time()
             while step < self.num_batches:
 
                 data = data_iter.next()
@@ -295,10 +297,12 @@ class condGANTrainer(object):
                     avg_p.mul_(0.999).add_(0.001, p.data)
 
                 if gen_iterations % 100 == 0:
-                    print(D_logs + '\n' + G_logs)
+                    end_t2 = time.time()
+                    print(D_logs + '\n' + G_logs + " %.2f"%(end_t2 - start_t2))
+                    start_t2 = end_t2
 
                 # save images
-                if gen_iterations % 1000 == 0:
+                if gen_iterations == 1 or gen_iterations % 1000 == 0:
                     backup_para = copy_G_params(netG)
                     load_params(netG, avg_param_G)
                     self.save_img_results(netG, fixed_noise, sent_emb,
@@ -409,6 +413,7 @@ class condGANTrainer(object):
                         im = Image.fromarray(im)
                         fullpath = '%s_s%d.png' % (s_tmp, idx)
                         idx = idx+1
+                        print(fullpath)
                         im.save(fullpath)
 
     def gen_example(self, data_dic):
@@ -428,7 +433,8 @@ class condGANTrainer(object):
                 netG = G_DCGAN()
             else:
                 netG = G_NET()
-            s_tmp = cfg.TRAIN.NET_G[:cfg.TRAIN.NET_G.rfind('.pth')]
+            # s_tmp = cfg.TRAIN.NET_G[:cfg.TRAIN.NET_G.rfind('.pth')]
+            s_tmp = "../output"
             model_dir = cfg.TRAIN.NET_G
             state_dict = \
                 torch.load(model_dir, map_location=lambda storage, loc: storage)
@@ -458,18 +464,24 @@ class condGANTrainer(object):
 
                     noise.data.normal_(0, 1)
                     fake_imgs, attention_maps, _, _ = netG(noise, sent_emb, words_embs, mask)
+                    print("shape", fake_imgs[0].shape, len(attention_maps[0]))
+
+                    for idx, attn_map in enumerate(attention_maps[0][0]):
+                        import matplotlib.pyplot as plt
+                        plt.imshow(attn_map.detach().cpu().numpy(), cmap="Greys")
 
                     cap_lens_np = cap_lens.cpu().data.numpy()
                     for j in range(batch_size):
                         save_name = '%s/%d_s_%d' % (save_dir, i, sorted_indices[j])
-                        for k in range(len(fake_imgs)):
-                            im = fake_imgs[k][j].data.cpu().numpy()
-                            im = (im + 1.0) * 127.5
-                            im = im.astype(np.uint8)
-                            im = np.transpose(im, (1, 2, 0))
-                            im = Image.fromarray(im)
-                            fullpath = '%s_g%d.png' % (save_name, k)
-                            im.save(fullpath)
+                        k = len(fake_imgs) - 1
+                        im = fake_imgs[k][j].data.cpu().numpy()
+                        im = (im + 1.0) * 127.5
+                        im = im.astype(np.uint8)
+                        im = np.transpose(im, (1, 2, 0))
+                        im = Image.fromarray(im)
+                        fullpath = cfg.OUTPUT_FILE_NAME+'_0.png'
+                        print(fullpath)
+                        im.save(fullpath)
 
                         for k in range(len(attention_maps)):
                             if len(fake_imgs) > 1:
@@ -482,8 +494,11 @@ class condGANTrainer(object):
                                 build_super_images2(im[j].unsqueeze(0),
                                                     captions[j].unsqueeze(0),
                                                     [cap_lens_np[j]], self.ixtoword,
-                                                    [attn_maps[j]], att_sze)
+                                                    [attn_maps[j]], att_sze, 
+                                                    output_file_name=cfg.OUTPUT_FILE_NAME, highlight=cfg.HIGHLIGHT)
+                            continue
                             if img_set is not None:
                                 im = Image.fromarray(img_set)
                                 fullpath = '%s_a%d.png' % (save_name, k)
+                                print(fullpath)
                                 im.save(fullpath)

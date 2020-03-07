@@ -11,6 +11,7 @@ from copy import deepcopy
 import skimage.transform
 
 from miscc.config import cfg
+import matplotlib.pyplot as plt
 
 
 # For visualization ################################################
@@ -138,6 +139,7 @@ def build_super_images(real_imgs, captions, ixtoword,
             if j < num_attn:
                 one_map = row_beforeNorm[j]
                 one_map = (one_map - minVglobal) / (maxVglobal - minVglobal)
+                one_map = row_beforeNorm[j][:, :, :3]
                 one_map *= 255
                 #
                 PIL_im = Image.fromarray(np.uint8(img))
@@ -174,7 +176,7 @@ def build_super_images(real_imgs, captions, ixtoword,
 
 
 def build_super_images2(real_imgs, captions, cap_lens, ixtoword,
-                        attn_maps, att_sze, vis_size=256, topK=5):
+                        attn_maps, att_sze, vis_size=256, topK=5, output_file_name="", highlight=0):
     batch_size = real_imgs.size(0)
     max_word_num = np.max(cap_lens)
     text_convas = np.ones([batch_size * FONT_MAX,
@@ -198,6 +200,7 @@ def build_super_images2(real_imgs, captions, cap_lens, ixtoword,
         drawCaption(text_convas, captions, ixtoword, vis_size, off1=0)
     text_map = np.asarray(text_map).astype(np.uint8)
 
+    print("num", num, attn_maps[0].shape, cap_lens)
     bUpdate = 1
     for i in range(num):
         attn = attn_maps[i].cpu().view(1, -1, att_sze, att_sze)
@@ -231,26 +234,37 @@ def build_super_images2(real_imgs, captions, cap_lens, ixtoword,
             row_beforeNorm.append(one_map)
         sorted_indices = np.argsort(conf_score)[::-1]
 
-        for j in range(num_attn):
-            one_map = row_beforeNorm[j]
-            one_map *= 255
-            #
-            PIL_im = Image.fromarray(np.uint8(img))
-            PIL_att = Image.fromarray(np.uint8(one_map))
-            merged = \
-                Image.new('RGBA', (vis_size, vis_size), (0, 0, 0, 0))
-            mask = Image.new('L', (vis_size, vis_size), (180))  # (210)
-            merged.paste(PIL_im, (0, 0))
-            merged.paste(PIL_att, (0, 0), mask)
-            merged = np.array(merged)[:, :, :3]
+        j = cfg.HIGHLIGHT
+        print("row_beforeNorm.shape", row_beforeNorm[j].shape)
+        one_map = row_beforeNorm[j].mean(axis=2)
+        one_map *= 255
+        one_map = one_map.astype(np.uint8)
+        plt.imshow(one_map)
+        PIL_im = Image.fromarray(np.uint8(img))
+        # print(one_map)
+        # print(np.uint8(img).shape)
+        # print(np.uint8(one_map).shape)
+        PIL_att = Image.fromarray(np.uint8(one_map)).convert(mode='RGB')
+        one_map = np.asarray(PIL_att)
+        merged = \
+            Image.new('RGBA', (vis_size, vis_size), (0, 0, 0, 0))
+        mask = Image.new('L', (vis_size, vis_size), (180))  # (210)
+        merged.paste(PIL_im, (0, 0))
+        merged.paste(PIL_att, (0, 0), mask)
+        merged = np.array(merged)[:, :, :3]
 
-            row.append(np.concatenate([one_map, middle_pad], 1))
-            #
-            row_merge.append(np.concatenate([merged, middle_pad], 1))
-            #
-            txt = text_map[i * FONT_MAX:(i + 1) * FONT_MAX,
-                           j * (vis_size + 2):(j + 1) * (vis_size + 2), :]
-            row_txt.append(txt)
+        #print("middle_pad", middle_pad.shape, one_map.shape)
+        row.append(np.concatenate([one_map, middle_pad], 1))
+        #
+        row_merge.append(np.concatenate([merged, middle_pad], 1))
+        #
+        txt = text_map[i * FONT_MAX:(i + 1) * FONT_MAX,
+                        j * (vis_size + 2):(j + 1) * (vis_size + 2), :]
+        row_txt.append(txt)
+        Image.fromarray(merged).save(cfg.OUTPUT_FILE_NAME + "_1.jpg")
+
+        return None, None
+        
         # reorder
         row_new = []
         row_merge_new = []

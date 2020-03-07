@@ -62,6 +62,9 @@ __C.TEXT.CAPTIONS_PER_IMAGE = 10
 __C.TEXT.EMBEDDING_DIM = 256
 __C.TEXT.WORDS_NUM = 18
 
+__C.OUTPUT_FILE_NAME = ""
+__C.HIGHLIGHT = 0
+
 
 def _merge_a_into_b(a, b):
     """Merge config dictionary a into config dictionary b, clobbering the
